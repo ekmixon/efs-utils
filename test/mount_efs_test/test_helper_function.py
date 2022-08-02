@@ -236,7 +236,7 @@ def test_get_botocore_client_botocore_not_present(mocker):
 
     client = mount_efs.get_botocore_client(config, 'efs', {})
 
-    assert client == None
+    assert client is None
     boto_session_mock.assert_not_called()
     utils.assert_not_called(get_target_region_mock)
 

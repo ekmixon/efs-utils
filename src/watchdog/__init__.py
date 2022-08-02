@@ -77,9 +77,16 @@ SIGV4_DATETIME_FORMAT = '%Y%m%dT%H%M%SZ'
 CERT_DATETIME_FORMAT = '%y%m%d%H%M%SZ'
 
 AWS_CREDENTIALS_FILES = {
-    'credentials': os.path.expanduser(os.path.join('~' + pwd.getpwuid(os.getuid()).pw_name, '.aws', 'credentials')),
-    'config': os.path.expanduser(os.path.join('~' + pwd.getpwuid(os.getuid()).pw_name, '.aws', 'config')),
+    'credentials': os.path.expanduser(
+        os.path.join(
+            f'~{pwd.getpwuid(os.getuid()).pw_name}', '.aws', 'credentials'
+        )
+    ),
+    'config': os.path.expanduser(
+        os.path.join(f'~{pwd.getpwuid(os.getuid()).pw_name}', '.aws', 'config')
+    ),
 }
+
 
 CA_CONFIG_BODY = """dir = %s
 RANDFILE = $dir/database/.rand
@@ -124,7 +131,10 @@ CANONICAL_URI = '/'
 CANONICAL_HEADERS_DICT = {
     'host': '%s'
 }
-CANONICAL_HEADERS = '\n'.join(['%s:%s' % (k, v) for k, v in sorted(CANONICAL_HEADERS_DICT.items())])
+CANONICAL_HEADERS = '\n'.join(
+    [f'{k}:{v}' for k, v in sorted(CANONICAL_HEADERS_DICT.items())]
+)
+
 SIGNED_HEADERS = ';'.join(CANONICAL_HEADERS_DICT.keys())
 REQUEST_PAYLOAD = ''
 
@@ -183,9 +193,13 @@ def get_aws_security_credentials(config, credentials_source, region):
 def get_boolean_config_item_value(config, config_section, config_item, default_value, emit_warning_message=True):
     warning_message = None
     if not config.has_section(config_section):
-        warning_message = 'Warning: config file does not have section %s.' % config_section
+        warning_message = (
+            f'Warning: config file does not have section {config_section}.'
+        )
+
     elif not config.has_option(config_section, config_item):
-        warning_message = 'Warning: config file does not have %s item in section %s.' % (config_item, config_section)
+        warning_message = f'Warning: config file does not have {config_item} item in section {config_section}.'
+
 
     if warning_message:
         if emit_warning_message:
@@ -214,9 +228,9 @@ def get_aws_ec2_metadata_token(timeout=DEFAULT_TIMEOUT):
         except socket.timeout:
             exception_message = 'Timeout when getting the aws ec2 metadata token'
         except HTTPError as e:
-            exception_message = 'Failed to fetch token due to %s' % e
+            exception_message = f'Failed to fetch token due to {e}'
         except Exception as e:
-            exception_message = 'Unknown error when fetching aws ec2 metadata token, %s' % e
+            exception_message = f'Unknown error when fetching aws ec2 metadata token, {e}'
         logging.debug(exception_message)
         return None
     except NameError:
@@ -228,9 +242,9 @@ def get_aws_ec2_metadata_token(timeout=DEFAULT_TIMEOUT):
         except socket.timeout:
             exception_message = 'Timeout when getting the aws ec2 metadata token'
         except HTTPError as e:
-            exception_message = 'Failed to fetch token due to %s' % e
+            exception_message = f'Failed to fetch token due to {e}'
         except Exception as e:
-            exception_message = 'Unknown error when fetching aws ec2 metadata token, %s' % e
+            exception_message = f'Unknown error when fetching aws ec2 metadata token, {e}'
         logging.debug(exception_message)
         return None
 
@@ -272,8 +286,10 @@ def botocore_credentials_helper(awsprofile):
     try:
         frozen_credentials = session.get_credentials().get_frozen_credentials()
     except ProfileNotFound as e:
-        logging.error('%s, please add the [profile %s] section in the aws config file following %s and %s.'
-                      % (e, awsprofile, NAMED_PROFILE_HELP_URL, CONFIG_FILE_SETTINGS_HELP_URL))
+        logging.error(
+            f'{e}, please add the [profile {awsprofile}] section in the aws config file following {NAMED_PROFILE_HELP_URL} and {CONFIG_FILE_SETTINGS_HELP_URL}.'
+        )
+
         return credentials
 
     credentials['AccessKeyId'] = frozen_credentials.access_key
@@ -286,9 +302,12 @@ def get_aws_security_credentials_from_ecs(config, uri):
     # through ECS security credentials uri found in AWS_CONTAINER_CREDENTIALS_RELATIVE_URI environment variable
     dict_keys = ['AccessKeyId', 'SecretAccessKey', 'Token']
     ecs_uri = ECS_TASK_METADATA_API + uri
-    ecs_unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % ecs_uri
-    ecs_url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' % \
-                        (ecs_uri, SECURITY_CREDS_ECS_URI_HELP_URL)
+    ecs_unsuccessful_resp = (
+        f'Unsuccessful retrieval of AWS security credentials at {ecs_uri}.'
+    )
+
+    ecs_url_error_msg = f'Unable to reach {ecs_uri} to retrieve AWS security credentials. See {SECURITY_CREDS_ECS_URI_HELP_URL} for more info.'
+
     ecs_security_dict = url_request_helper(config, ecs_uri, ecs_unsuccessful_resp, ecs_url_error_msg)
 
     if ecs_security_dict and all(k in ecs_security_dict for k in dict_keys):
@@ -306,20 +325,28 @@ def get_aws_security_credentials_from_webidentity(config, role_arn, token_file, 
         return None
 
     STS_ENDPOINT_URL = STS_ENDPOINT_URL_FORMAT.format(region)
-    webidentity_url = STS_ENDPOINT_URL + '?' + urlencode({
-        'Version': '2011-06-15',
-        'Action': 'AssumeRoleWithWebIdentity',
-        'RoleArn': role_arn,
-        'RoleSessionName': 'efs-mount-helper',
-        'WebIdentityToken': token
-    })
+    webidentity_url = f'{STS_ENDPOINT_URL}?' + urlencode(
+        {
+            'Version': '2011-06-15',
+            'Action': 'AssumeRoleWithWebIdentity',
+            'RoleArn': role_arn,
+            'RoleSessionName': 'efs-mount-helper',
+            'WebIdentityToken': token,
+        }
+    )
 
-    unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % STS_ENDPOINT_URL
-    url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' % \
-                    (STS_ENDPOINT_URL, SECURITY_CREDS_WEBIDENTITY_HELP_URL)
-    resp = url_request_helper(config, webidentity_url, unsuccessful_resp, url_error_msg, headers={'Accept': 'application/json'})
 
-    if resp:
+    unsuccessful_resp = f'Unsuccessful retrieval of AWS security credentials at {STS_ENDPOINT_URL}.'
+
+    url_error_msg = f'Unable to reach {STS_ENDPOINT_URL} to retrieve AWS security credentials. See {SECURITY_CREDS_WEBIDENTITY_HELP_URL} for more info.'
+
+    if resp := url_request_helper(
+        config,
+        webidentity_url,
+        unsuccessful_resp,
+        url_error_msg,
+        headers={'Accept': 'application/json'},
+    ):
         creds = resp \
                 .get('AssumeRoleWithWebIdentityResponse', {}) \
                 .get('AssumeRoleWithWebIdentityResult', {}) \
@@ -337,15 +364,23 @@ def get_aws_security_credentials_from_webidentity(config, role_arn, token_file, 
 def get_aws_security_credentials_from_instance_metadata(config):
     # through IAM role name security credentials lookup uri (after lookup for IAM role name attached to instance)
     dict_keys = ['AccessKeyId', 'SecretAccessKey', 'Token']
-    iam_role_unsuccessful_resp = 'Unsuccessful retrieval of IAM role name at %s.' % INSTANCE_IAM_URL
-    iam_role_url_error_msg = 'Unable to reach %s to retrieve IAM role name. See %s for more info.' % \
-                             (INSTANCE_IAM_URL, SECURITY_CREDS_IAM_ROLE_HELP_URL)
-    iam_role_name = url_request_helper(config, INSTANCE_IAM_URL, iam_role_unsuccessful_resp, iam_role_url_error_msg)
-    if iam_role_name:
+    iam_role_unsuccessful_resp = (
+        f'Unsuccessful retrieval of IAM role name at {INSTANCE_IAM_URL}.'
+    )
+
+    iam_role_url_error_msg = f'Unable to reach {INSTANCE_IAM_URL} to retrieve IAM role name. See {SECURITY_CREDS_IAM_ROLE_HELP_URL} for more info.'
+
+    if iam_role_name := url_request_helper(
+        config,
+        INSTANCE_IAM_URL,
+        iam_role_unsuccessful_resp,
+        iam_role_url_error_msg,
+    ):
         security_creds_lookup_url = INSTANCE_IAM_URL + iam_role_name
-        unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % security_creds_lookup_url
-        url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' % \
-                        (security_creds_lookup_url, SECURITY_CREDS_IAM_ROLE_HELP_URL)
+        unsuccessful_resp = f'Unsuccessful retrieval of AWS security credentials at {security_creds_lookup_url}.'
+
+        url_error_msg = f'Unable to reach {security_creds_lookup_url} to retrieve AWS security credentials. See {SECURITY_CREDS_IAM_ROLE_HELP_URL} for more info.'
+
         iam_security_dict = url_request_helper(config, security_creds_lookup_url, unsuccessful_resp, url_error_msg)
 
         if iam_security_dict and all(k in iam_security_dict for k in dict_keys):
@@ -391,13 +426,7 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
             req.add_header(k, v)
 
         if not fetch_ec2_metadata_token_disabled(config) and is_instance_metadata_url(url):
-            # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
-            # IMDSv1 is a request/response method to access instance metadata
-            # IMDSv2 is a session-oriented method to access instance metadata
-            # We expect the token retrieve will fail in bridge networking environment (e.g. container) since the default hop
-            # limit for getting the token is 1. If the token retrieve does timeout, we fallback to use IMDSv1 instead
-            token = get_aws_ec2_metadata_token()
-            if token:
+            if token := get_aws_ec2_metadata_token():
                 req.add_header('X-aws-ec2-metadata-token', token)
 
         request_resp = urlopen(req, timeout=1)
@@ -413,7 +442,7 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
                             '"%s" to "false" in config file %s.' % (url, DISABLE_FETCH_EC2_METADATA_TOKEN_ITEM, CONFIG_FILE))
         err_msg = 'Unable to reach the url at %s: status=%d, reason is %s' % (url, e.code, e.reason)
     except URLError as e:
-        err_msg = 'Unable to reach the url at %s, reason is %s' % (url, e.reason)
+        err_msg = f'Unable to reach the url at {url}, reason is {e.reason}'
 
     if err_msg:
         logging.debug('%s %s', url_error_msg, err_msg)
@@ -422,18 +451,27 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
 
 def get_resp_obj(request_resp, url, unsuccessful_resp):
     if request_resp.getcode() != 200:
-        logging.debug(unsuccessful_resp + ' %s: ResponseCode=%d', url, request_resp.getcode())
+        logging.debug(
+            f'{unsuccessful_resp} %s: ResponseCode=%d',
+            url,
+            request_resp.getcode(),
+        )
+
         return None
 
     resp_body = request_resp.read()
     resp_body_type = type(resp_body)
     try:
-        if resp_body_type is str:
-            resp_dict = json.loads(resp_body)
-        else:
-            resp_dict = json.loads(resp_body.decode(request_resp.headers.get_content_charset() or 'us-ascii'))
+        return (
+            json.loads(resp_body)
+            if resp_body_type is str
+            else json.loads(
+                resp_body.decode(
+                    request_resp.headers.get_content_charset() or 'us-ascii'
+                )
+            )
+        )
 
-        return resp_dict
     except ValueError as e:
         logging.info('ValueError parsing "%s" into json: %s. Returning response body.' % (str(resp_body), e))
         return resp_body if resp_body_type is str else resp_body.decode('utf-8')
@@ -490,8 +528,8 @@ def get_file_safe_mountpoint(mount):
     if 'port' not in opts:
         # some other localhost nfs mount not running over stunnel.
         # For MacOS, we ignore the port if the port is missing in mount options.
-        return None if not check_if_running_on_macos() else mountpoint
-    return mountpoint + '.' + opts['port']
+        return mountpoint if check_if_running_on_macos() else None
+    return f'{mountpoint}.' + opts['port']
 
 
 def get_current_local_nfs_mounts(mount_file='/proc/mounts'):
@@ -503,21 +541,31 @@ def get_current_local_nfs_mounts(mount_file='/proc/mounts'):
 
     if not check_if_running_on_macos():
         with open(mount_file) as f:
-            for mount in f:
-                mounts.append(Mount._make(mount.strip().split()))
+            mounts.extend(Mount._make(mount.strip().split()) for mount in f)
     else:
         # stat command on MacOS does not have '--file-system' option to verify the filesystem type of a mount point,
         # traverse all the mounts, and find if current mount point is already mounted
         process = subprocess.run(['mount', '-t', 'nfs'], check=True, stdout=subprocess.PIPE, universal_newlines=True)
-        stdout = process.stdout
-        if stdout:
+        if stdout := process.stdout:
             output = stdout.split('\n')
             for mount in output:
                 _mount = mount.split()
                 if len(_mount) >= 4:
                     mount_ops = get_nfs_mount_options_on_macos(_mount[2], _mount[0])
                     # Sample output: 127.0.0.1:/ on /Users/ec2-user/efs (nfs)
-                    mounts.append(Mount._make([_mount[0], _mount[2], _mount[3], mount_ops if mount_ops else '', 0, 0]))
+                    mounts.append(
+                        Mount._make(
+                            [
+                                _mount[0],
+                                _mount[2],
+                                _mount[3],
+                                mount_ops or '',
+                                0,
+                                0,
+                            ]
+                        )
+                    )
+
         else:
             logging.warning('No nfs mounts found')
 
@@ -525,8 +573,7 @@ def get_current_local_nfs_mounts(mount_file='/proc/mounts'):
 
     mount_dict = {}
     for m in mounts:
-        safe_mnt = get_file_safe_mountpoint(m)
-        if safe_mnt:
+        if safe_mnt := get_file_safe_mountpoint(m):
             mount_dict[safe_mnt] = m
 
     return mount_dict
@@ -597,7 +644,11 @@ def start_tls_tunnel(child_procs, state_file, command):
     tunnel = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setsid, close_fds=True)
 
     if not is_pid_running(tunnel.pid):
-        fatal_error('Failed to initialize TLS tunnel for %s' % state_file, 'Failed to start TLS tunnel.')
+        fatal_error(
+            f'Failed to initialize TLS tunnel for {state_file}',
+            'Failed to start TLS tunnel.',
+        )
+
 
     logging.info('Started TLS tunnel, pid: %d', tunnel.pid)
 
@@ -622,7 +673,7 @@ def clean_up_mount_state(state_file_dir, state_file, pid, is_running, mount_stat
         with open(state_file_path) as f:
             state = json.load(f)
 
-        for f in state.get('files', list()):
+        for f in state.get('files', []):
             logging.debug('Deleting %s', f)
             try:
                 os.remove(f)
@@ -643,7 +694,7 @@ def clean_up_mount_state(state_file_dir, state_file, pid, is_running, mount_stat
 
 
 def rewrite_state_file(state, state_file_dir, state_file):
-    tmp_state_file = os.path.join(state_file_dir, '~%s' % state_file)
+    tmp_state_file = os.path.join(state_file_dir, f'~{state_file}')
     with open(tmp_state_file, 'w') as f:
         json.dump(state, f)
 
@@ -661,7 +712,10 @@ def mark_as_unmounted(state, state_file_dir, state_file, current_time):
 
 def restart_tls_tunnel(child_procs, state, state_file_dir, state_file):
     if 'certificate' in state and not os.path.exists(state['certificate']):
-        logging.error('Cannot restart stunnel because self-signed certificate at %s is missing' % state['certificate'])
+        logging.error(
+            f"Cannot restart stunnel because self-signed certificate at {state['certificate']} is missing"
+        )
+
         return
 
     new_tunnel_pid = start_tls_tunnel(child_procs, state_file, state['cmd'])
@@ -767,14 +821,27 @@ def check_certificate(config, state, state_file_dir, state_file, base_path=STATE
         return
 
     if not certificate_exists:
-        logging.debug('Certificate (at %s) is missing. Recreating self-signed certificate' % state['certificate'])
+        logging.debug(
+            f"Certificate (at {state['certificate']}) is missing. Recreating self-signed certificate"
+        )
+
     else:
-        logging.debug('Refreshing self-signed certificate (at %s)' % state['certificate'])
+        logging.debug(
+            f"Refreshing self-signed certificate (at {state['certificate']})"
+        )
+
 
     credentials_source = state.get('awsCredentialsMethod')
-    updated_certificate_creation_time = recreate_certificate(config, state['mountStateDir'], state['commonName'], state['fsId'],
-                                                             credentials_source, ap_state, state['region'], base_path=base_path)
-    if updated_certificate_creation_time:
+    if updated_certificate_creation_time := recreate_certificate(
+        config,
+        state['mountStateDir'],
+        state['commonName'],
+        state['fsId'],
+        credentials_source,
+        ap_state,
+        state['region'],
+        base_path=base_path,
+    ):
         state['certificateCreationTime'] = updated_certificate_creation_time
         rewrite_state_file(state, state_file_dir, state_file)
 
@@ -857,8 +924,8 @@ def recreate_certificate(config, mount_name, common_name, fs_id, credentials_sou
     not_before = get_certificate_timestamp(current_time, minutes=-NOT_BEFORE_MINS)
     not_after = get_certificate_timestamp(current_time, hours=NOT_AFTER_HOURS)
 
-    cmd = 'openssl ca -startdate %s -enddate %s -selfsign -batch -notext -config %s -in %s -out %s' % \
-          (not_before, not_after, certificate_config, certificate_signing_request, certificate)
+    cmd = f'openssl ca -startdate {not_before} -enddate {not_after} -selfsign -batch -notext -config {certificate_config} -in {certificate_signing_request} -out {certificate}'
+
     subprocess_call(cmd, 'Failed to create self-signed client-side certificate')
     return current_time.strftime(CERT_DATETIME_FORMAT)
 
@@ -881,7 +948,7 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
         lock_file = os.path.join(base_path, 'efs-utils-lock')
         f = os.open(lock_file, os.O_CREAT | os.O_DSYNC | os.O_EXCL | os.O_RDWR)
         try:
-            lock_file_contents = 'PID: %s' % os.getpid()
+            lock_file_contents = f'PID: {os.getpid()}'
             os.write(f, lock_file_contents.encode('utf-8'))
             yield f
         finally:
@@ -895,7 +962,10 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
                     return function()
             except OSError as e:
                 if e.errno == errno.EEXIST:
-                    logging.info('Failed to take out private key creation lock, sleeping %s (s)' % DEFAULT_TIMEOUT)
+                    logging.info(
+                        f'Failed to take out private key creation lock, sleeping {DEFAULT_TIMEOUT} (s)'
+                    )
+
                     time.sleep(DEFAULT_TIMEOUT)
                 else:
                     raise
@@ -904,7 +974,8 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
         if os.path.isfile(key):
             return
 
-        cmd = 'openssl genpkey -algorithm RSA -out %s -pkeyopt rsa_keygen_bits:3072' % key
+        cmd = f'openssl genpkey -algorithm RSA -out {key} -pkeyopt rsa_keygen_bits:3072'
+
         subprocess_call(cmd, 'Failed to create private key')
         read_only_mode = 0o400
         os.chmod(key, read_only_mode)
@@ -914,7 +985,7 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
 
 
 def create_certificate_signing_request(config_path, key_path, csr_path):
-    cmd = 'openssl req -new -config %s -key %s -out %s' % (config_path, key_path, csr_path)
+    cmd = f'openssl req -new -config {config_path} -key {key_path} -out {csr_path}'
     subprocess_call(cmd, 'Failed to create certificate signing request (csr)')
 
 
@@ -987,7 +1058,7 @@ def efs_client_info_builder(client_info):
 
 
 def create_public_key(private_key, public_key):
-    cmd = 'openssl rsa -in %s -outform PEM -pubout -out %s' % (private_key, public_key)
+    cmd = f'openssl rsa -in {private_key} -outform PEM -pubout -out {public_key}'
     subprocess_call(cmd, 'Failed to create public key')
 
 
@@ -1033,17 +1104,17 @@ def ca_supporting_files_check(index_path, index_attr_path, serial_path, rand_pat
 
 
 def tls_paths_dictionary(mount_name, base_path=STATE_FILE_DIR):
-    tls_dict = {
+    return {
         'mount_dir': os.path.join(base_path, mount_name),
         'database_dir': os.path.join(base_path, mount_name, 'database'),
         'certs_dir': os.path.join(base_path, mount_name, 'certs'),
         'index': os.path.join(base_path, mount_name, 'database/index.txt'),
-        'index_attr': os.path.join(base_path, mount_name, 'database/index.txt.attr'),
+        'index_attr': os.path.join(
+            base_path, mount_name, 'database/index.txt.attr'
+        ),
         'serial': os.path.join(base_path, mount_name, 'database/serial'),
-        'rand': os.path.join(base_path, mount_name, 'database/.rand')
+        'rand': os.path.join(base_path, mount_name, 'database/.rand'),
     }
-
-    return tls_dict
 
 
 def get_public_key_sha1(public_key):
@@ -1062,8 +1133,11 @@ def get_public_key_sha1(public_key):
     #     6:d=2  hl=2 l=   9 prim: OBJECT            :rsaEncryption
     #    17:d=2  hl=2 l=   0 prim: NULL
     #    19:d=1  hl=4 l= 399 prim: BIT STRING
-    cmd = 'openssl asn1parse -inform PEM -in %s' % public_key
-    output, err = subprocess_call(cmd, 'Unable to ASN1 parse public key file, %s, correctly' % public_key)
+    cmd = f'openssl asn1parse -inform PEM -in {public_key}'
+    output, err = subprocess_call(
+        cmd, f'Unable to ASN1 parse public key file, {public_key}, correctly'
+    )
+
 
     key_line = ''
     for line in output.splitlines():
@@ -1114,7 +1188,7 @@ def create_canonical_request(public_key_hash, date, access_key, region, fs_id, s
     Create a Canonical Request - https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     """
     formatted_datetime = date.strftime(SIGV4_DATETIME_FORMAT)
-    credential = quote_plus(access_key + '/' + get_credential_scope(date, region))
+    credential = quote_plus(f'{access_key}/{get_credential_scope(date, region)}')
 
     request = HTTP_REQUEST_METHOD + '\n'
     request += CANONICAL_URI + '\n'
@@ -1145,7 +1219,9 @@ def create_canonical_query_string(public_key_hash, credential, formatted_datetim
         canonical_query_params['X-Amz-Security-Token'] = quote_plus(session_token)
 
     # Cannot use urllib.urlencode because it replaces the %s's
-    return '&'.join(['%s=%s' % (k, v) for k, v in sorted(canonical_query_params.items())])
+    return '&'.join(
+        [f'{k}={v}' for k, v in sorted(canonical_query_params.items())]
+    )
 
 
 def create_string_to_sign(canonical_request, date, region):
@@ -1170,7 +1246,11 @@ def calculate_signature(string_to_sign, date, secret_access_key, region):
     def _sign(key, msg):
         return hmac.new(key, msg.encode('utf-8'), hashlib.sha256)
 
-    key_date = _sign(('AWS4' + secret_access_key).encode('utf-8'), date.strftime(DATE_ONLY_FORMAT)).digest()
+    key_date = _sign(
+        f'AWS4{secret_access_key}'.encode('utf-8'),
+        date.strftime(DATE_ONLY_FORMAT),
+    ).digest()
+
     add_region = _sign(key_date, region).digest()
     add_service = _sign(add_region, SERVICE).digest()
     signing_key = _sign(add_service, 'aws4_request').digest()
@@ -1215,10 +1295,11 @@ def get_utc_now():
 
 
 def check_process_name(pid):
-    if not check_if_running_on_macos():
-        cmd = ['cat', '/proc/{pid}/cmdline'.format(pid=pid)]
-    else:
-        cmd = ['ps', '-p', str(pid), '-o', 'command=']
+    cmd = (
+        ['ps', '-p', str(pid), '-o', 'command=']
+        if check_if_running_on_macos()
+        else ['cat', '/proc/{pid}/cmdline'.format(pid=pid)]
+    )
 
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
     return p.communicate()[0]
@@ -1293,8 +1374,6 @@ def main():
     config = read_config()
     bootstrap_logging(config)
 
-    child_procs = []
-
     if get_boolean_config_item_value(config, CONFIG_SECTION, 'enabled', default_value=True):
         logging.info('amazon-efs-mount-watchdog, version %s, is enabled and started', VERSION)
         poll_interval_sec = config.getint(CONFIG_SECTION, 'poll_interval_sec')
@@ -1302,6 +1381,8 @@ def main():
 
         clean_up_previous_stunnel_pids()
         clean_up_certificate_lock_file()
+
+        child_procs = []
 
         while True:
             config = read_config()
@@ -1313,5 +1394,5 @@ def main():
         logging.info('amazon-efs-mount-watchdog is not enabled')
 
 
-if '__main__' == __name__:
+if __name__ == '__main__':
     main()

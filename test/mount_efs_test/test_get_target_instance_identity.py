@@ -167,7 +167,7 @@ def _test_get_target_region_error(mocker, capsys, response=None, error=None):
         raise ValueError('Invalid arguments')
     elif response:
         mocker.patch('mount_efs.urlopen', return_value=response)
-    elif error:
+    else:
         mocker.patch('mount_efs.urlopen', side_effect=error)
 
     with pytest.raises(SystemExit) as ex:

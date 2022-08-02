@@ -15,7 +15,7 @@ from mock import MagicMock
 AP_ID = 'fsap-beefdead'
 FS_ID = 'fs-deadbeef'
 CLIENT_SOURCE = 'test'
-DNS_NAME = '%s.efs.us-east-1.amazonaws.com' % FS_ID
+DNS_NAME = f'{FS_ID}.efs.us-east-1.amazonaws.com'
 MOUNT_POINT = '/mnt'
 REGION = 'us-east-1'
 
@@ -57,8 +57,10 @@ def setup_mocks_without_popen(mocker):
     mocker.patch('mount_efs.write_tls_tunnel_state_file', return_value='~mocktempfile')
     mocker.patch('os.kill')
 
-    write_config_mock = mocker.patch('mount_efs.write_stunnel_config_file', return_value=EXPECTED_STUNNEL_CONFIG_FILE)
-    return write_config_mock
+    return mocker.patch(
+        'mount_efs.write_stunnel_config_file',
+        return_value=EXPECTED_STUNNEL_CONFIG_FILE,
+    )
 
 
 def test_bootstrap_tls_state_file_dir_exists(mocker, tmpdir):
@@ -106,7 +108,7 @@ def test_bootstrap_tls_cert_created(mocker, tmpdir):
     mocker.patch('mount_efs.get_mount_specific_filename', return_value=DNS_NAME)
     mocker.patch('mount_efs.get_target_region', return_value=REGION)
     state_file_dir = str(tmpdir)
-    tls_dict = mount_efs.tls_paths_dictionary(DNS_NAME + '+', state_file_dir)
+    tls_dict = mount_efs.tls_paths_dictionary(f'{DNS_NAME}+', state_file_dir)
 
     pk_path = os.path.join(str(tmpdir), 'privateKey.pem')
     mocker.patch('mount_efs.get_private_key_path', return_value=pk_path)

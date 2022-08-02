@@ -26,25 +26,28 @@ def test_file_version_match():
     global_version = get_global_version()
     for f in FILE_LIST:
         version_in_file = get_version_for_file(f)
-        assert version_in_file == global_version, 'version in {} is {}, does not match global version {}'\
-            .format(f, version_in_file, global_version)
+        assert (
+            version_in_file == global_version
+        ), f'version in {f} is {version_in_file}, does not match global version {global_version}'
 
 
 def test_file_release_match():
     global_release = get_global_release()
     for f in [DEB_FILE, SPEC_FILE]:
         release_in_file = get_release_for_file(f)
-        assert release_in_file == global_release, 'release in {} is {}, does not match global release {}'\
-            .format(f, release_in_file, global_release)
+        assert (
+            release_in_file == global_release
+        ), f'release in {f} is {release_in_file}, does not match global release {global_release}'
 
 
 def test_changelog_version_match():
     global_version = get_global_version()
 
     version_in_changelog = get_version_for_changelog(SPEC_FILE)
-    assert version_in_changelog is not None and version_in_changelog == global_version, \
-        'version in {} is {}, does not match expected_version_release {}, you need to add changelog in the spec file'\
-            .format(SPEC_FILE, version_in_changelog, global_version)
+    assert (
+        version_in_changelog is not None
+        and version_in_changelog == global_version
+    ), f'version in {SPEC_FILE} is {version_in_changelog}, does not match expected_version_release {global_version}, you need to add changelog in the spec file'
 
 
 def get_global_version():
@@ -99,8 +102,7 @@ def get_global_value(key):
     mount_helper_root_folder = uppath(os.path.abspath(__file__), 3)
     config_file = os.path.join(mount_helper_root_folder, GLOBAL_CONFIG)
     cp = read_config(config_file)
-    value = str(cp.get('global', key))
-    return value
+    return str(cp.get('global', key))
 
 
 # Given:    path  :   file path

@@ -37,8 +37,7 @@ def setup_mock(mocker, is_pid_running):
     mocker.patch('os.getpgid')
     mocker.patch('watchdog.is_pid_running', return_value=is_pid_running)
 
-    killpg_mock = mocker.patch('os.killpg')
-    return killpg_mock
+    return mocker.patch('os.killpg')
 
 
 def test_clean_up_on_first_try(mocker, tmpdir):

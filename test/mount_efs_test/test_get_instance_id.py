@@ -120,7 +120,7 @@ def test_get_instance_id_config_metadata_unavailable(mocker):
     mocker.patch('mount_efs.get_aws_ec2_metadata_token', return_value=None)
     mocker.patch('mount_efs.urlopen', side_effect=URLError('test error'))
     instance_id = test_get_instance_id_helper()
-    assert instance_id == None
+    assert instance_id is None
 
 
 def _test_get_instance_id_error(mocker, response=None, error=None):
@@ -129,11 +129,11 @@ def _test_get_instance_id_error(mocker, response=None, error=None):
         raise ValueError('Invalid arguments')
     elif response:
         mocker.patch('mount_efs.urlopen', return_value=response)
-    elif error:
+    else:
         mocker.patch('mount_efs.urlopen', side_effect=error)
 
     instance_id = test_get_instance_id_helper()
-    assert instance_id == None
+    assert instance_id is None
 
 
 def test_get_instance_id_bad_response(mocker):
@@ -155,7 +155,7 @@ def test_get_instance_id_missing_instance_id(mocker):
 def test_get_instance_id_via_cached_instance_identity(mocker):
     mocker.patch('mount_efs.get_aws_ec2_metadata_token', return_value='ABCDEFG==')
     url_request_helper_mock_1 = mocker.patch('mount_efs.urlopen', return_value=MockUrlLibResponse())
-    assert mount_efs.INSTANCE_IDENTITY == None
+    assert mount_efs.INSTANCE_IDENTITY is None
     assert INSTANCE_ID == test_get_instance_id_helper()
     utils.assert_called_n_times(url_request_helper_mock_1, 1)
 

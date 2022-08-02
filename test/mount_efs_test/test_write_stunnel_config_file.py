@@ -27,7 +27,7 @@ PORT = 12345
 VERIFY_LEVEL = 2
 OCSP_ENABLED = False
 DEFAULT_REGION = 'us-east-1'
-STUNNEL_LOGS_FILE = '/var/log/amazon/efs/%s.stunnel.log' % FS_ID
+STUNNEL_LOGS_FILE = f'/var/log/amazon/efs/{FS_ID}.stunnel.log'
 
 
 def _get_config(mocker, stunnel_debug_enabled=False, stunnel_check_cert_hostname_supported=True,
@@ -60,10 +60,9 @@ def _get_config(mocker, stunnel_debug_enabled=False, stunnel_check_cert_hostname
 
 
 def _get_mount_options(port=PORT):
-    options = {
+    return {
         'tlsport': port,
     }
-    return options
 
 
 def _validate_config(stunnel_config_file, expected_global_config, expected_efs_config):
@@ -105,10 +104,12 @@ def _get_expected_efs_config(port=PORT, dns_name=DNS_NAME, verify=mount_efs.DEFA
 
     expected_efs_config = dict(mount_efs.STUNNEL_EFS_CONFIG)
     expected_efs_config['accept'] = expected_efs_config['accept'] % port
-    if not fallback_ip_address:
-        expected_efs_config['connect'] = expected_efs_config['connect'] % dns_name
-    else:
-        expected_efs_config['connect'] = expected_efs_config['connect'] % fallback_ip_address
+    expected_efs_config['connect'] = (
+        expected_efs_config['connect'] % fallback_ip_address
+        if fallback_ip_address
+        else expected_efs_config['connect'] % dns_name
+    )
+
     expected_efs_config['verify'] = str(verify)
 
     if check_cert_hostname:

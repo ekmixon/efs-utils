@@ -204,7 +204,7 @@ def test_match_device_resolve_to_unexpected_efs_dns_name(mocker, capsys):
 
 
 def test_match_device_fqdn_same_as_dns_name(mocker, capsys):
-    dns_name = '%s.efs.us-east-1.amazonaws.com' % FS_ID
+    dns_name = f'{FS_ID}.efs.us-east-1.amazonaws.com'
     gethostbyname_ex_mock = mocker.patch('socket.gethostbyname_ex',
                                          return_value=(dns_name, [], None))
     efs_fqdn_match = mount_efs.EFS_FQDN_RE.match(dns_name)
@@ -222,7 +222,7 @@ def test_match_device_fqdn_same_as_dns_name(mocker, capsys):
 
 
 def test_match_device_fqdn_same_as_dns_name_with_az(mocker, capsys):
-    dns_name = '%s.%s.efs.us-east-1.amazonaws.com' % (DEFAULT_AZ, FS_ID)
+    dns_name = f'{DEFAULT_AZ}.{FS_ID}.efs.us-east-1.amazonaws.com'
     gethostbyname_ex_mock = mocker.patch('socket.gethostbyname_ex',
                                          return_value=(dns_name, [], None))
     efs_fqdn_match = mount_efs.EFS_FQDN_RE.match(dns_name)

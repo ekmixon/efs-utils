@@ -230,7 +230,7 @@ def test_do_not_refresh_self_signed_certificate_bad_ap_id_incorrect_start(mocker
     watchdog.check_certificate(config, state, str(tmpdir), STATE_FILE, base_path=str(tmpdir))
 
     assert datetime.strptime(state['certificateCreationTime'], DT_PATTERN) == datetime.strptime(four_hours_back, DT_PATTERN)
-    assert not state['accessPoint'] == AP_ID
+    assert state['accessPoint'] != AP_ID
     assert 'Access Point ID "%s" has been changed in the state file to a malformed format' \
            % BAD_AP_ID_INCORRECT_START in caplog.text
 
@@ -248,7 +248,7 @@ def test_do_not_refresh_self_signed_certificate_bad_ap_id_too_short(mocker, tmpd
     watchdog.check_certificate(config, state, str(tmpdir), STATE_FILE, base_path=str(tmpdir))
 
     assert datetime.strptime(state['certificateCreationTime'], DT_PATTERN) == datetime.strptime(four_hours_back, DT_PATTERN)
-    assert not state['accessPoint'] == AP_ID
+    assert state['accessPoint'] != AP_ID
     assert 'Access Point ID "%s" has been changed in the state file to a malformed format' % BAD_AP_ID_TOO_SHORT in caplog.text
 
 
@@ -265,7 +265,7 @@ def test_do_not_refresh_self_signed_certificate_bad_ap_id_bad_char(mocker, tmpdi
     watchdog.check_certificate(config, state, str(tmpdir), STATE_FILE, base_path=str(tmpdir))
 
     assert datetime.strptime(state['certificateCreationTime'], DT_PATTERN) == datetime.strptime(four_hours_back, DT_PATTERN)
-    assert not state['accessPoint'] == AP_ID
+    assert state['accessPoint'] != AP_ID
     assert 'Access Point ID "%s" has been changed in the state file to a malformed format' % BAD_AP_ID_BAD_CHAR in caplog.text
 
 
@@ -515,8 +515,10 @@ def test_create_ca_conf_with_awsprofile_no_credentials_found(mocker, caplog, tmp
     config = _get_config()
     mocker.patch('watchdog.get_aws_security_credentials', return_value=None)
     watchdog.create_ca_conf(config, None, None, str(tmpdir), None, None, None, None, CREDENTIALS_SOURCE, None)
-    assert 'Failed to retrieve AWS security credentials using lookup method: %s' % CREDENTIALS_SOURCE in \
-           [rec.message for rec in caplog.records][0]
+    assert (
+        f'Failed to retrieve AWS security credentials using lookup method: {CREDENTIALS_SOURCE}'
+        in [rec.message for rec in caplog.records][0]
+    )
 
 
 def test_create_ca_conf_without_client_info(mocker, tmpdir):

@@ -116,17 +116,17 @@ def test_main_good_ap_with_tls(mocker):
 
 
 def test_main_bad_ap_incorrect_start_with_tls(mocker, capsys):
-    expected_err = 'Access Point ID %s is malformed' % BAD_AP_ID_INCORRECT_START
+    expected_err = f'Access Point ID {BAD_AP_ID_INCORRECT_START} is malformed'
     _test_main_assert_error(mocker, capsys, expected_err, tls=True, ap_id=BAD_AP_ID_INCORRECT_START, tlsport=TLS_PORT)
 
 
 def test_main_bad_ap_too_short_with_tls(mocker, capsys):
-    expected_err = 'Access Point ID %s is malformed' % BAD_AP_ID_TOO_SHORT
+    expected_err = f'Access Point ID {BAD_AP_ID_TOO_SHORT} is malformed'
     _test_main_assert_error(mocker, capsys, expected_err, tls=True, ap_id=BAD_AP_ID_TOO_SHORT, tlsport=TLS_PORT)
 
 
 def test_main_bad_ap_bad_char_with_tls(mocker, capsys):
-    expected_err = 'Access Point ID %s is malformed' % BAD_AP_ID_BAD_CHAR
+    expected_err = f'Access Point ID {BAD_AP_ID_BAD_CHAR} is malformed'
     _test_main_assert_error(mocker, capsys, expected_err, tls=True, ap_id=BAD_AP_ID_BAD_CHAR, tlsport=TLS_PORT)
 
 

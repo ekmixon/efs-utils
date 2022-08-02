@@ -214,11 +214,7 @@ def _test_get_aws_security_credentials_instance_metadata_role_name(mocker, is_na
         'Expiration': '2019-10-25T21:17:24Z'
     })
 
-    if is_name_str:
-        role_name_data = b'FAKE_IAM_ROLE_NAME'
-    else:
-        role_name_data = 'FAKE_IAM_ROLE_NAME'
-
+    role_name_data = b'FAKE_IAM_ROLE_NAME' if is_name_str else 'FAKE_IAM_ROLE_NAME'
     side_effects = token_effects + [MockUrlLibResponse(data=role_name_data)] + token_effects + [MockUrlLibResponse(data=response)]
     mocker.patch('watchdog.urlopen', side_effect=side_effects)
 
@@ -315,7 +311,10 @@ def test_credentials_file_helper_not_found(caplog, tmpdir):
     assert credentials['AccessKeyId'] is None
     assert credentials['SecretAccessKey'] is None
     assert credentials['Token'] is None
-    assert 'No [%s] section found in config file' % AWSPROFILE in [rec.message for rec in caplog.records][0]
+    assert (
+        f'No [{AWSPROFILE}] section found in config file'
+        in [rec.message for rec in caplog.records][0]
+    )
 
 
 def test_credentials_file_helper_not_found_with_awsprofile(caplog, tmpdir):

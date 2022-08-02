@@ -111,8 +111,16 @@ DATE_ONLY_FORMAT = '%Y%m%d'
 SIGV4_DATETIME_FORMAT = '%Y%m%dT%H%M%SZ'
 CERT_DATETIME_FORMAT = '%y%m%d%H%M%SZ'
 
-AWS_CREDENTIALS_FILE = os.path.expanduser(os.path.join('~' + pwd.getpwuid(os.getuid()).pw_name, '.aws', 'credentials'))
-AWS_CONFIG_FILE = os.path.expanduser(os.path.join('~' + pwd.getpwuid(os.getuid()).pw_name, '.aws', 'config'))
+AWS_CREDENTIALS_FILE = os.path.expanduser(
+    os.path.join(
+        f'~{pwd.getpwuid(os.getuid()).pw_name}', '.aws', 'credentials'
+    )
+)
+
+AWS_CONFIG_FILE = os.path.expanduser(
+    os.path.join(f'~{pwd.getpwuid(os.getuid()).pw_name}', '.aws', 'config')
+)
+
 
 CA_CONFIG_BODY = """dir = %s
 RANDFILE = $dir/database/.rand
@@ -157,7 +165,10 @@ CANONICAL_URI = '/'
 CANONICAL_HEADERS_DICT = {
     'host': '%s'
 }
-CANONICAL_HEADERS = '\n'.join(['%s:%s' % (k, v) for k, v in sorted(CANONICAL_HEADERS_DICT.items())])
+CANONICAL_HEADERS = '\n'.join(
+    [f'{k}:{v}' for k, v in sorted(CANONICAL_HEADERS_DICT.items())]
+)
+
 SIGNED_HEADERS = ';'.join(CANONICAL_HEADERS_DICT.keys())
 REQUEST_PAYLOAD = ''
 
@@ -309,7 +320,7 @@ def fatal_error(user_message, log_message=None, exit_code=1):
 
     sys.stderr.write('%s\n' % user_message)
     logging.error(log_message)
-    publish_cloudwatch_log(CLOUDWATCHLOG_AGENT, 'Mount failed, %s' % log_message)
+    publish_cloudwatch_log(CLOUDWATCHLOG_AGENT, f'Mount failed, {log_message}')
     sys.exit(exit_code)
 
 
@@ -353,27 +364,29 @@ def get_target_az(config, options):
 
 
 def get_region_from_instance_metadata(config):
-    instance_identity = get_instance_identity_info_from_instance_metadata(config, 'region')
-
-    if not instance_identity:
+    if instance_identity := get_instance_identity_info_from_instance_metadata(
+        config, 'region'
+    ):
+        return instance_identity
+    else:
         raise Exception("Cannot retrieve region from instance_metadata")
-
-    return instance_identity
 
 
 def get_az_from_instance_metadata(config):
-    instance_identity = get_instance_identity_info_from_instance_metadata(config, 'availabilityZone')
-
-    if not instance_identity:
+    if instance_identity := get_instance_identity_info_from_instance_metadata(
+        config, 'availabilityZone'
+    ):
+        return instance_identity
+    else:
         raise Exception("Cannot retrieve az from instance_metadata")
-
-    return instance_identity
 
 
 def get_instance_identity_info_from_instance_metadata(config, property):
     logging.debug('Retrieve property %s from instance metadata', property)
-    ec2_metadata_unsuccessful_resp = 'Unsuccessful retrieval of EC2 metadata at %s.' % INSTANCE_METADATA_SERVICE_URL
-    ec2_metadata_url_error_msg = 'Unable to reach %s to retrieve EC2 instance metadata.' % INSTANCE_METADATA_SERVICE_URL
+    ec2_metadata_unsuccessful_resp = f'Unsuccessful retrieval of EC2 metadata at {INSTANCE_METADATA_SERVICE_URL}.'
+
+    ec2_metadata_url_error_msg = f'Unable to reach {INSTANCE_METADATA_SERVICE_URL} to retrieve EC2 instance metadata.'
+
 
     global INSTANCE_IDENTITY
     if INSTANCE_IDENTITY:
@@ -388,9 +401,9 @@ def get_instance_identity_info_from_instance_metadata(config, property):
         try:
             return instance_identity[property]
         except KeyError as e:
-            logging.warning('%s not present in %s: %s' % (property, instance_identity, e))
+            logging.warning(f'{property} not present in {instance_identity}: {e}')
         except TypeError as e:
-            logging.warning('response %s is not a json object: %s' % (instance_identity, e))
+            logging.warning(f'response {instance_identity} is not a json object: {e}')
 
     return None
 
@@ -413,9 +426,13 @@ def get_region_from_legacy_dns_format(config):
 def get_boolean_config_item_value(config, config_section, config_item, default_value, emit_warning_message=True):
     warning_message = None
     if not config.has_section(config_section):
-        warning_message = 'Warning: config file does not have section %s.' % config_section
+        warning_message = (
+            f'Warning: config file does not have section {config_section}.'
+        )
+
     elif not config.has_option(config_section, config_item):
-        warning_message = 'Warning: config file does not have %s item in section %s.' % (config_item, config_section)
+        warning_message = f'Warning: config file does not have {config_item} item in section {config_section}.'
+
 
     if warning_message:
         if emit_warning_message:
@@ -445,9 +462,9 @@ def get_aws_ec2_metadata_token(timeout=DEFAULT_TIMEOUT):
         except socket.timeout:
             exception_message = 'Timeout when getting the aws ec2 metadata token'
         except HTTPError as e:
-            exception_message = 'Failed to fetch token due to %s' % e
+            exception_message = f'Failed to fetch token due to {e}'
         except Exception as e:
-            exception_message = 'Unknown error when fetching aws ec2 metadata token, %s' % e
+            exception_message = f'Unknown error when fetching aws ec2 metadata token, {e}'
         logging.debug(exception_message)
         return None
     except NameError:
@@ -459,9 +476,9 @@ def get_aws_ec2_metadata_token(timeout=DEFAULT_TIMEOUT):
         except socket.timeout:
             exception_message = 'Timeout when getting the aws ec2 metadata token'
         except HTTPError as e:
-            exception_message = 'Failed to fetch token due to %s' % e
+            exception_message = f'Failed to fetch token due to {e}'
         except Exception as e:
-            exception_message = 'Unknown error when fetching aws ec2 metadata token, %s' % e
+            exception_message = f'Unknown error when fetching aws ec2 metadata token, {e}'
         logging.debug(exception_message)
         return None
 
@@ -504,10 +521,7 @@ def get_aws_security_credentials(config, use_iam, region, awsprofile=None, aws_c
         if credentials and credentials_source:
             return credentials, credentials_source
 
-    # attempt to lookup AWS security credentials with IAM role name attached to instance
-    # through IAM role name security credentials lookup uri
-    iam_role_name = get_iam_role_name(config)
-    if iam_role_name:
+    if iam_role_name := get_iam_role_name(config):
         credentials, credentials_source = get_aws_security_credentials_from_instance_metadata(config, iam_role_name)
         if credentials and credentials_source:
             return credentials, credentials_source
@@ -523,19 +537,19 @@ def get_aws_security_credentials_from_awsprofile(awsprofile, is_fatal=False):
         if os.path.exists(file_path):
             credentials = credentials_file_helper(file_path, awsprofile)
             if credentials['AccessKeyId']:
-                logging.debug("Retrieved credentials from %s" % file_path)
-                return credentials, os.path.basename(file_path) + ':' + awsprofile
+                logging.debug(f"Retrieved credentials from {file_path}")
+                return credentials, f'{os.path.basename(file_path)}:{awsprofile}'
 
     # If credentials are not defined in the aws credentials and config file, attempt to assume the named profile
     credentials = botocore_credentials_helper(awsprofile)
     if credentials['AccessKeyId']:
-        logging.debug("Retrieved credentials from assumed profile %s" % awsprofile)
-        return credentials, 'named_profile:' + awsprofile
+        logging.debug(f"Retrieved credentials from assumed profile {awsprofile}")
+        return credentials, f'named_profile:{awsprofile}'
 
     # Fail if credentials cannot be fetched from the given awsprofile
     if is_fatal:
-        log_message = 'AWS security credentials not found in %s or %s under named profile [%s]' % \
-                    (AWS_CREDENTIALS_FILE, AWS_CONFIG_FILE, awsprofile)
+        log_message = f'AWS security credentials not found in {AWS_CREDENTIALS_FILE} or {AWS_CONFIG_FILE} under named profile [{awsprofile}]'
+
         fatal_error(log_message)
     else:
         return None, None
@@ -543,13 +557,16 @@ def get_aws_security_credentials_from_awsprofile(awsprofile, is_fatal=False):
 
 def get_aws_security_credentials_from_ecs(config, aws_creds_uri, is_fatal=False):
     ecs_uri = ECS_TASK_METADATA_API + aws_creds_uri
-    ecs_unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % ecs_uri
-    ecs_url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' \
-                        % (ecs_uri, SECURITY_CREDS_ECS_URI_HELP_URL)
+    ecs_unsuccessful_resp = (
+        f'Unsuccessful retrieval of AWS security credentials at {ecs_uri}.'
+    )
+
+    ecs_url_error_msg = f'Unable to reach {ecs_uri} to retrieve AWS security credentials. See {SECURITY_CREDS_ECS_URI_HELP_URL} for more info.'
+
     ecs_security_dict = url_request_helper(config, ecs_uri, ecs_unsuccessful_resp, ecs_url_error_msg)
 
     if ecs_security_dict and all(k in ecs_security_dict for k in CREDENTIALS_KEYS):
-        return ecs_security_dict, 'ecs:' + aws_creds_uri
+        return ecs_security_dict, f'ecs:{aws_creds_uri}'
 
     # Fail if credentials cannot be fetched from the given aws_creds_uri
     if is_fatal:
@@ -563,27 +580,34 @@ def get_aws_security_credentials_from_webidentity(config, role_arn, token_file, 
         with open(token_file, 'r') as f:
             token = f.read()
     except Exception as e:
-        if is_fatal:
-            unsuccessful_resp = 'Error reading token file %s: %s' % (token_file, e)
-            fatal_error(unsuccessful_resp, unsuccessful_resp)
-        else:
+        if not is_fatal:
             return None, None
 
+        unsuccessful_resp = f'Error reading token file {token_file}: {e}'
+        fatal_error(unsuccessful_resp, unsuccessful_resp)
     STS_ENDPOINT_URL = STS_ENDPOINT_URL_FORMAT.format(region)
-    webidentity_url = STS_ENDPOINT_URL + '?' + urlencode({
-        'Version': '2011-06-15',
-        'Action': 'AssumeRoleWithWebIdentity',
-        'RoleArn': role_arn,
-        'RoleSessionName': 'efs-mount-helper',
-        'WebIdentityToken': token
-    })
+    webidentity_url = f'{STS_ENDPOINT_URL}?' + urlencode(
+        {
+            'Version': '2011-06-15',
+            'Action': 'AssumeRoleWithWebIdentity',
+            'RoleArn': role_arn,
+            'RoleSessionName': 'efs-mount-helper',
+            'WebIdentityToken': token,
+        }
+    )
 
-    unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % STS_ENDPOINT_URL
-    url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' % \
-                    (STS_ENDPOINT_URL, SECURITY_CREDS_WEBIDENTITY_HELP_URL)
-    resp = url_request_helper(config, webidentity_url, unsuccessful_resp, url_error_msg, headers={'Accept': 'application/json'})
 
-    if resp:
+    unsuccessful_resp = f'Unsuccessful retrieval of AWS security credentials at {STS_ENDPOINT_URL}.'
+
+    url_error_msg = f'Unable to reach {STS_ENDPOINT_URL} to retrieve AWS security credentials. See {SECURITY_CREDS_WEBIDENTITY_HELP_URL} for more info.'
+
+    if resp := url_request_helper(
+        config,
+        webidentity_url,
+        unsuccessful_resp,
+        url_error_msg,
+        headers={'Accept': 'application/json'},
+    ):
         creds = resp \
                 .get('AssumeRoleWithWebIdentityResponse', {}) \
                 .get('AssumeRoleWithWebIdentityResult', {}) \
@@ -604,9 +628,10 @@ def get_aws_security_credentials_from_webidentity(config, role_arn, token_file, 
 
 def get_aws_security_credentials_from_instance_metadata(config, iam_role_name):
     security_creds_lookup_url = INSTANCE_IAM_URL + iam_role_name
-    unsuccessful_resp = 'Unsuccessful retrieval of AWS security credentials at %s.' % security_creds_lookup_url
-    url_error_msg = 'Unable to reach %s to retrieve AWS security credentials. See %s for more info.' % \
-                    (security_creds_lookup_url, SECURITY_CREDS_IAM_ROLE_HELP_URL)
+    unsuccessful_resp = f'Unsuccessful retrieval of AWS security credentials at {security_creds_lookup_url}.'
+
+    url_error_msg = f'Unable to reach {security_creds_lookup_url} to retrieve AWS security credentials. See {SECURITY_CREDS_IAM_ROLE_HELP_URL} for more info.'
+
     iam_security_dict = url_request_helper(config, security_creds_lookup_url, unsuccessful_resp, url_error_msg)
 
     if iam_security_dict and all(k in iam_security_dict for k in CREDENTIALS_KEYS):
@@ -616,11 +641,18 @@ def get_aws_security_credentials_from_instance_metadata(config, iam_role_name):
 
 
 def get_iam_role_name(config):
-    iam_role_unsuccessful_resp = 'Unsuccessful retrieval of IAM role name at %s.' % INSTANCE_IAM_URL
-    iam_role_url_error_msg = 'Unable to reach %s to retrieve IAM role name. See %s for more info.' % \
-                             (INSTANCE_IAM_URL, SECURITY_CREDS_IAM_ROLE_HELP_URL)
-    iam_role_name = url_request_helper(config, INSTANCE_IAM_URL, iam_role_unsuccessful_resp, iam_role_url_error_msg)
-    return iam_role_name
+    iam_role_unsuccessful_resp = (
+        f'Unsuccessful retrieval of IAM role name at {INSTANCE_IAM_URL}.'
+    )
+
+    iam_role_url_error_msg = f'Unable to reach {INSTANCE_IAM_URL} to retrieve IAM role name. See {SECURITY_CREDS_IAM_ROLE_HELP_URL} for more info.'
+
+    return url_request_helper(
+        config,
+        INSTANCE_IAM_URL,
+        iam_role_unsuccessful_resp,
+        iam_role_url_error_msg,
+    )
 
 
 def credentials_file_helper(file_path, awsprofile):
@@ -654,7 +686,10 @@ def botocore_credentials_helper(awsprofile):
     # and return the credentials
     credentials = {'AccessKeyId': None, 'SecretAccessKey': None, 'Token': None}
     if not BOTOCORE_PRESENT:
-        logging.error('Cannot find credentials for %s, to assume this profile, please install botocore first.' % awsprofile)
+        logging.error(
+            f'Cannot find credentials for {awsprofile}, to assume this profile, please install botocore first.'
+        )
+
         return credentials
     session = botocore.session.get_session()
     session.set_config_variable('profile', awsprofile)
@@ -662,8 +697,10 @@ def botocore_credentials_helper(awsprofile):
     try:
         frozen_credentials = session.get_credentials().get_frozen_credentials()
     except ProfileNotFound as e:
-        fatal_error('%s, please add the [profile %s] section in the aws config file following %s and %s.'
-                    % (e, awsprofile, NAMED_PROFILE_HELP_URL, CONFIG_FILE_SETTINGS_HELP_URL))
+        fatal_error(
+            f'{e}, please add the [profile {awsprofile}] section in the aws config file following {NAMED_PROFILE_HELP_URL} and {CONFIG_FILE_SETTINGS_HELP_URL}.'
+        )
+
 
     credentials['AccessKeyId'] = frozen_credentials.access_key
     credentials['SecretAccessKey'] = frozen_credentials.secret_key
@@ -698,13 +735,7 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
             req.add_header(k, v)
 
         if not fetch_ec2_metadata_token_disabled(config) and is_instance_metadata_url(url):
-            # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
-            # IMDSv1 is a request/response method to access instance metadata
-            # IMDSv2 is a session-oriented method to access instance metadata
-            # We expect the token retrieve will fail in bridge networking environment (e.g. container) since the default hop
-            # limit for getting the token is 1. If the token retrieve does timeout, we fallback to use IMDSv1 instead
-            token = get_aws_ec2_metadata_token()
-            if token:
+            if token := get_aws_ec2_metadata_token():
                 req.add_header('X-aws-ec2-metadata-token', token)
 
         request_resp = urlopen(req, timeout=1)
@@ -720,7 +751,7 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
                             '"%s" to "false" in config file %s.' % (url, DISABLE_FETCH_EC2_METADATA_TOKEN_ITEM, CONFIG_FILE))
         err_msg = 'Unable to reach the url at %s: status=%d, reason is %s' % (url, e.code, e.reason)
     except URLError as e:
-        err_msg = 'Unable to reach the url at %s, reason is %s' % (url, e.reason)
+        err_msg = f'Unable to reach the url at {url}, reason is {e.reason}'
 
     if err_msg:
         logging.debug('%s %s', url_error_msg, err_msg)
@@ -729,18 +760,27 @@ def url_request_helper(config, url, unsuccessful_resp, url_error_msg, headers={}
 
 def get_resp_obj(request_resp, url, unsuccessful_resp):
     if request_resp.getcode() != 200:
-        logging.debug(unsuccessful_resp + ' %s: ResponseCode=%d', url, request_resp.getcode())
+        logging.debug(
+            f'{unsuccessful_resp} %s: ResponseCode=%d',
+            url,
+            request_resp.getcode(),
+        )
+
         return None
 
     resp_body = request_resp.read()
     resp_body_type = type(resp_body)
     try:
-        if resp_body_type is str:
-            resp_dict = json.loads(resp_body)
-        else:
-            resp_dict = json.loads(resp_body.decode(request_resp.headers.get_content_charset() or 'us-ascii'))
+        return (
+            json.loads(resp_body)
+            if resp_body_type is str
+            else json.loads(
+                resp_body.decode(
+                    request_resp.headers.get_content_charset() or 'us-ascii'
+                )
+            )
+        )
 
-        return resp_dict
     except ValueError as e:
         logging.info('ValueError parsing "%s" into json: %s. Returning response body.' % (str(resp_body), e))
         return resp_body if resp_body_type is str else resp_body.decode('utf-8')
@@ -793,7 +833,10 @@ def choose_tls_port(config, options):
         return tls_port
 
     if 'tlsport' in options:
-        fatal_error('Specified port [%s] is unavailable. Try selecting a different port.' % options['tlsport'])
+        fatal_error(
+            f"Specified port [{options['tlsport']}] is unavailable. Try selecting a different port."
+        )
+
     else:
         fatal_error('Failed to locate an available port in the range [%d, %d], try specifying a different port range in %s'
                     % (lower_bound, upper_bound, CONFIG_FILE))
@@ -831,14 +874,13 @@ def serialize_stunnel_config(config, header=None):
     lines = []
 
     if header:
-        lines.append('[%s]' % header)
+        lines.append(f'[{header}]')
 
     for k, v in config.items():
         if type(v) is list:
-            for item in v:
-                lines.append('%s = %s' % (k, item))
+            lines.extend(f'{k} = {item}' for item in v)
         else:
-            lines.append('%s = %s' % (k, v))
+            lines.append(f'{k} = {v}')
 
     return lines
 
@@ -863,20 +905,18 @@ def add_stunnel_ca_options(efs_config, config, options, region):
 
 
 def get_config_section(config, region):
-    region_specific_config_section = '%s.%s' % (CONFIG_SECTION, region)
-    if config.has_section(region_specific_config_section):
-        config_section = region_specific_config_section
-    else:
-        config_section = CONFIG_SECTION
-    return config_section
+    region_specific_config_section = f'{CONFIG_SECTION}.{region}'
+    return (
+        region_specific_config_section
+        if config.has_section(region_specific_config_section)
+        else CONFIG_SECTION
+    )
 
 
 def is_stunnel_option_supported(stunnel_output, stunnel_option_name):
-    supported = False
-    for line in stunnel_output:
-        if line.startswith(stunnel_option_name):
-            supported = True
-            break
+    supported = any(
+        line.startswith(stunnel_option_name) for line in stunnel_output
+    )
 
     if not supported:
         logging.warning('stunnel does not support "%s"', stunnel_option_name)
@@ -910,7 +950,7 @@ def find_command_path(command, install_method):
         os.putenv('PATH', env_path)
         path = subprocess.check_output(['which', command])
     except subprocess.CalledProcessError as e:
-        fatal_error('Failed to locate %s in %s - %s' % (command, env_path, install_method), e)
+        fatal_error(f'Failed to locate {command} in {env_path} - {install_method}', e)
     return path.strip().decode()
 
 
@@ -956,7 +996,10 @@ def write_stunnel_config_file(config, state_file_dir, fs_id, mountpoint, tls_por
         if config.has_option(CONFIG_SECTION, 'stunnel_logs_file'):
             global_config['output'] = config.get(CONFIG_SECTION, 'stunnel_logs_file').replace('{fs_id}', fs_id)
         else:
-            global_config['output'] = os.path.join(log_dir, '%s.stunnel.log' % mount_filename)
+            global_config['output'] = os.path.join(
+                log_dir, f'{mount_filename}.stunnel.log'
+            )
+
 
     efs_config = dict(STUNNEL_EFS_CONFIG)
     efs_config['accept'] = efs_config['accept'] % tls_port
@@ -996,13 +1039,19 @@ def write_stunnel_config_file(config, state_file_dir, fs_id, mountpoint, tls_por
         else:
             fatal_error(tls_controls_message % 'stunnel_check_cert_validity')
 
-    if not any(release in system_release_version for release in SKIP_NO_LIBWRAP_RELEASES):
+    if all(
+        release not in system_release_version
+        for release in SKIP_NO_LIBWRAP_RELEASES
+    ):
         efs_config['libwrap'] = 'no'
 
     stunnel_config = '\n'.join(serialize_stunnel_config(global_config) + serialize_stunnel_config(efs_config, 'efs'))
     logging.debug('Writing stunnel configuration:\n%s', stunnel_config)
 
-    stunnel_config_file = os.path.join(state_file_dir, 'stunnel-config.%s' % mount_filename)
+    stunnel_config_file = os.path.join(
+        state_file_dir, f'stunnel-config.{mount_filename}'
+    )
+
 
     with open(stunnel_config_file, 'w') as f:
         f.write(stunnel_config)
@@ -1015,7 +1064,7 @@ def write_tls_tunnel_state_file(fs_id, mountpoint, tls_port, tunnel_pid, command
     Return the name of the temporary file containing TLS tunnel state, prefixed with a '~'. This file needs to be renamed to a
     non-temporary version following a successful mount.
     """
-    state_file = '~' + get_mount_specific_filename(fs_id, mountpoint, tls_port)
+    state_file = f'~{get_mount_specific_filename(fs_id, mountpoint, tls_port)}'
 
     state = {
         'pid': tunnel_pid,
@@ -1024,7 +1073,7 @@ def write_tls_tunnel_state_file(fs_id, mountpoint, tls_port, tunnel_pid, command
     }
 
     if cert_details:
-        state.update(cert_details)
+        state |= cert_details
 
     with open(os.path.join(state_file_dir, state_file), 'w') as f:
         json.dump(state, f)
@@ -1036,9 +1085,11 @@ def test_tunnel_process(tunnel_proc, fs_id):
     tunnel_proc.poll()
     if tunnel_proc.returncode is not None:
         out, err = tunnel_proc.communicate()
-        fatal_error('Failed to initialize TLS tunnel for %s' % fs_id,
-                    'Failed to start TLS tunnel (errno=%d). stdout="%s" stderr="%s"'
-                    % (tunnel_proc.returncode, out.strip(), err.strip()))
+        fatal_error(
+            f'Failed to initialize TLS tunnel for {fs_id}',
+            'Failed to start TLS tunnel (errno=%d). stdout="%s" stderr="%s"'
+            % (tunnel_proc.returncode, out.strip(), err.strip()),
+        )
 
 
 def poll_tunnel_process(tunnel_proc, fs_id, mount_completed):
@@ -1071,10 +1122,21 @@ def get_init_system(comm_file='/proc/1/comm'):
 
 def check_network_target(fs_id):
     with open(os.devnull, 'w') as devnull:
-        if not check_if_platform_is_mac():
-            rc = subprocess.call(['systemctl', 'status', 'network.target'], stdout=devnull, stderr=devnull, close_fds=True)
-        else:
-            rc = subprocess.call(['sudo', 'ifconfig', 'en0'], stdout=devnull, stderr=devnull, close_fds=True)
+        rc = (
+            subprocess.call(
+                ['sudo', 'ifconfig', 'en0'],
+                stdout=devnull,
+                stderr=devnull,
+                close_fds=True,
+            )
+            if check_if_platform_is_mac()
+            else subprocess.call(
+                ['systemctl', 'status', 'network.target'],
+                stdout=devnull,
+                stderr=devnull,
+                close_fds=True,
+            )
+        )
 
     if rc != 0:
         fatal_error('Failed to mount %s because the network was not yet available, add "_netdev" to your mount options' % fs_id,
@@ -1159,8 +1221,7 @@ def bootstrap_tls(config, init_system, dns_name, fs_id, mountpoint, options, sta
     region = get_target_region(config)
 
     if use_iam:
-        aws_creds_uri = options.get('awscredsuri')
-        if aws_creds_uri:
+        if aws_creds_uri := options.get('awscredsuri'):
             kwargs = {'aws_creds_uri': aws_creds_uri}
         else:
             kwargs = {'awsprofile': get_aws_profile(options, use_iam)}
@@ -1174,9 +1235,12 @@ def bootstrap_tls(config, init_system, dns_name, fs_id, mountpoint, options, sta
         cert_details['accessPoint'] = ap_id
 
     # additional symbol appended to avoid naming collisions
-    cert_details['mountStateDir'] = get_mount_specific_filename(fs_id, mountpoint, tls_port) + '+'
+    cert_details[
+        'mountStateDir'
+    ] = f'{get_mount_specific_filename(fs_id, mountpoint, tls_port)}+'
+
     # common name for certificate signing request is max 64 characters
-    cert_details['commonName'] = socket.gethostname()[0:64]
+    cert_details['commonName'] = socket.gethostname()[:64]
     region = get_target_region(config)
     cert_details['region'] = region
     cert_details['certificateCreationTime'] = create_certificate(config, cert_details['mountStateDir'],
@@ -1243,7 +1307,7 @@ def check_if_nfsvers_is_compatible_with_macos(options):
 def get_nfs_mount_options(options):
     # If you change these options, update the man page as well at man/mount.efs.8
     if 'nfsvers' not in options and 'vers' not in options:
-        options['nfsvers'] = '4.1' if not check_if_platform_is_mac() else '4.0'
+        options['nfsvers'] = '4.0' if check_if_platform_is_mac() else '4.1'
 
     if check_if_platform_is_mac():
         check_if_nfsvers_is_compatible_with_macos(options)
@@ -1269,9 +1333,7 @@ def get_nfs_mount_options(options):
         options['port'] = options['tlsport']
 
     def to_nfs_option(k, v):
-        if v is None:
-            return k
-        return '%s=%s' % (str(k), str(v))
+        return k if v is None else f'{str(k)}={str(v)}'
 
     nfs_options = [to_nfs_option(k, v) for k, v in options.items() if k not in EFS_ONLY_OPTIONS]
 
@@ -1281,16 +1343,29 @@ def get_nfs_mount_options(options):
 def mount_nfs(config, dns_name, path, mountpoint, options, fallback_ip_address=None):
 
     if 'tls' in options:
-        mount_path = '127.0.0.1:%s' % path
+        mount_path = f'127.0.0.1:{path}'
     elif fallback_ip_address:
-        mount_path = '%s:%s' % (fallback_ip_address, path)
+        mount_path = f'{fallback_ip_address}:{path}'
     else:
-        mount_path = '%s:%s' % (dns_name, path)
+        mount_path = f'{dns_name}:{path}'
 
-    if not check_if_platform_is_mac():
-        command = ['/sbin/mount.nfs4', mount_path, mountpoint, '-o', get_nfs_mount_options(options)]
-    else:
-        command = ['/sbin/mount_nfs', '-o', get_nfs_mount_options(options), mount_path, mountpoint]
+    command = (
+        [
+            '/sbin/mount_nfs',
+            '-o',
+            get_nfs_mount_options(options),
+            mount_path,
+            mountpoint,
+        ]
+        if check_if_platform_is_mac()
+        else [
+            '/sbin/mount.nfs4',
+            mount_path,
+            mountpoint,
+            '-o',
+            get_nfs_mount_options(options),
+        ]
+    )
 
     if 'netns' in options:
         command = ['nsenter', '--net=' + options['netns']] + command
@@ -1301,7 +1376,7 @@ def mount_nfs(config, dns_name, path, mountpoint, options, fallback_ip_address=N
     out, err = proc.communicate()
 
     if proc.returncode == 0:
-        message = 'Successfully mounted %s at %s' % (dns_name, mountpoint)
+        message = f'Successfully mounted {dns_name} at {mountpoint}'
         logging.info(message)
         publish_cloudwatch_log(CLOUDWATCHLOG_AGENT, message)
 
@@ -1339,15 +1414,7 @@ def parse_arguments(config, args=None):
     mountpoint = None
     options = {}
 
-    if not check_if_platform_is_mac():
-        if len(args) > 1:
-            fsname = args[1]
-        if len(args) > 2:
-            mountpoint = args[2]
-        if len(args) > 4 and '-o' in args[:-1]:
-            options_index = args.index('-o') + 1
-            options = parse_options(args[options_index])
-    else:
+    if check_if_platform_is_mac():
         if len(args) > 1:
             fsname = args[-2]
         if len(args) > 2:
@@ -1355,8 +1422,16 @@ def parse_arguments(config, args=None):
         if len(args) > 4 and '-o' in args[:-2]:
             for arg in args[1:-2]:
                 if arg != '-o':
-                    options.update(parse_options(arg))
+                    options |= parse_options(arg)
 
+    else:
+        if len(args) > 1:
+            fsname = args[1]
+        if len(args) > 2:
+            mountpoint = args[2]
+        if len(args) > 4 and '-o' in args[:-1]:
+            options_index = args.index('-o') + 1
+            options = parse_options(args[options_index])
     if not fsname or not mountpoint:
         usage(out=sys.stderr)
 
@@ -1411,8 +1486,8 @@ def create_certificate(config, mount_name, common_name, region, fs_id, security_
     not_before = get_certificate_timestamp(current_time, minutes=-NOT_BEFORE_MINS)
     not_after = get_certificate_timestamp(current_time, hours=NOT_AFTER_HOURS)
 
-    cmd = 'openssl ca -startdate %s -enddate %s -selfsign -batch -notext -config %s -in %s -out %s' % \
-          (not_before, not_after, certificate_config, certificate_signing_request, certificate)
+    cmd = f'openssl ca -startdate {not_before} -enddate {not_after} -selfsign -batch -notext -config {certificate_config} -in {certificate_signing_request} -out {certificate}'
+
     subprocess_call(cmd, 'Failed to create self-signed client-side certificate')
     return current_time.strftime(CERT_DATETIME_FORMAT)
 
@@ -1433,7 +1508,7 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
         lock_file = os.path.join(base_path, 'efs-utils-lock')
         f = os.open(lock_file, os.O_CREAT | os.O_DSYNC | os.O_EXCL | os.O_RDWR)
         try:
-            lock_file_contents = 'PID: %s' % os.getpid()
+            lock_file_contents = f'PID: {os.getpid()}'
             os.write(f, lock_file_contents.encode('utf-8'))
             yield f
         finally:
@@ -1456,7 +1531,8 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
         if os.path.isfile(key):
             return
 
-        cmd = 'openssl genpkey -algorithm RSA -out %s -pkeyopt rsa_keygen_bits:3072' % key
+        cmd = f'openssl genpkey -algorithm RSA -out {key} -pkeyopt rsa_keygen_bits:3072'
+
         subprocess_call(cmd, 'Failed to create private key')
         read_only_mode = 0o400
         os.chmod(key, read_only_mode)
@@ -1466,7 +1542,8 @@ def check_and_create_private_key(base_path=STATE_FILE_DIR):
 
 
 def create_certificate_signing_request(config_path, private_key, csr_path):
-    cmd = 'openssl req -new -config %s -key %s -out %s' % (config_path, private_key, csr_path)
+    cmd = f'openssl req -new -config {config_path} -key {private_key} -out {csr_path}'
+
     subprocess_call(cmd, 'Failed to create certificate signing request (csr)')
 
 
@@ -1527,27 +1604,26 @@ def efs_client_info_builder(client_info):
 
 
 def create_public_key(private_key, public_key):
-    cmd = 'openssl rsa -in %s -outform PEM -pubout -out %s' % (private_key, public_key)
+    cmd = f'openssl rsa -in {private_key} -outform PEM -pubout -out {public_key}'
     subprocess_call(cmd, 'Failed to create public key')
 
 
 def subprocess_call(cmd, error_message):
     """Helper method to run shell openssl command and to handle response error messages"""
     retry_times = 3
-    for retry in range(retry_times):
+    for _ in range(retry_times):
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
         (output, err) = process.communicate()
         rc = process.poll()
-        if rc != 0:
-            logging.error('Command %s failed, rc=%s, stdout="%s", stderr="%s"' % (cmd, rc, output, err), exc_info=True)
-            try:
-                process.kill()
-            except OSError:
-                # Silently fail if the subprocess has exited already
-                pass
-        else:
+        if rc == 0:
             return output, err
-    error_message = '%s, error is: %s' % (error_message, err)
+        logging.error('Command %s failed, rc=%s, stdout="%s", stderr="%s"' % (cmd, rc, output, err), exc_info=True)
+        try:
+            process.kill()
+        except OSError:
+            # Silently fail if the subprocess has exited already
+            pass
+    error_message = f'{error_message}, error is: {err}'
     fatal_error(error_message, error_message)
 
 
@@ -1676,7 +1752,10 @@ def get_dns_name_and_fallback_mount_target_ip_address(config, fs_id, options):
 
     if 'mounttargetip' in options:
         ip_address = options.get('mounttargetip')
-        logging.info('Use the mount target ip address %s provided in the mount options to mount.' % ip_address)
+        logging.info(
+            f'Use the mount target ip address {ip_address} provided in the mount options to mount.'
+        )
+
         try:
             mount_target_ip_address_can_be_resolved(ip_address, passed_via_options=True,
                                                     network_namespace=options.get('netns') if 'netns' in options else None)
@@ -1704,7 +1783,8 @@ def get_fallback_mount_target_ip_address(config, options, fs_id, dns_name):
     fall_back_to_ip_address_enabled = check_if_fall_back_to_mount_target_ip_address_is_enabled(config)
 
     if not fall_back_to_ip_address_enabled:
-        fallback_message = 'Fallback to mount target ip address feature is not enabled in config file %s.' % CONFIG_FILE
+        fallback_message = f'Fallback to mount target ip address feature is not enabled in config file {CONFIG_FILE}.'
+
         raise FallbackException(fallback_message)
 
     if not BOTOCORE_PRESENT:
@@ -1748,8 +1828,8 @@ def mount_target_ip_address_can_be_resolved(mount_target_ip_address, passed_via_
             return True
         except socket.timeout:
             if attempt < tries - 1:
-                message = 'The ip address %s cannot be connected yet, sleep 0.5s, %s retry time(s) left' \
-                          % (mount_target_ip_address, tries - attempt - 1)
+                message = f'The ip address {mount_target_ip_address} cannot be connected yet, sleep 0.5s, {tries - attempt - 1} retry time(s) left'
+
                 logging.warning(message)
                 time.sleep(0.5)
                 continue
@@ -1761,8 +1841,9 @@ def mount_target_ip_address_can_be_resolved(mount_target_ip_address, passed_via_
         except Exception as e:
             hint_message = ' Please check if the mount target ip address passed via mount option is correct.' \
                 if passed_via_options else ''
-            raise FallbackException('Unknown error when connecting to mount target IP address %s, %s.%s'
-                                    % (mount_target_ip_address, e, hint_message))
+            raise FallbackException(
+                f'Unknown error when connecting to mount target IP address {mount_target_ip_address}, {e}.{hint_message}'
+            )
 
 
 def get_fallback_mount_target_ip_address_helper(config, options, fs_id):
@@ -1789,29 +1870,30 @@ def throw_dns_resolve_failure_with_fallback_message(dns_name, fallback_message=N
 
 def throw_ip_address_connect_failure_with_fallback_message(dns_name=None, ip_address=None, fallback_message=None):
     dns_message = 'Failed to resolve "%s". ' % dns_name if dns_name else ''
-    if not ip_address:
-        ip_address_message = 'The file system mount target ip address cannot be found, please pass mount target ip ' \
-                             'address via mount options. '
-    else:
-        ip_address_message = 'Cannot connect to file system mount target ip address %s. ' % ip_address
+    ip_address_message = (
+        f'Cannot connect to file system mount target ip address {ip_address}. '
+        if ip_address
+        else 'The file system mount target ip address cannot be found, please pass mount target ip '
+        'address via mount options. '
+    )
+
     fallback_message = '\n%s' % fallback_message if fallback_message else ''
-    fatal_error('%s%s%s'
-                % (dns_message, ip_address_message, fallback_message))
+    fatal_error(f'{dns_message}{ip_address_message}{fallback_message}')
 
 
 def tls_paths_dictionary(mount_name, base_path=STATE_FILE_DIR):
-    tls_dict = {
+    return {
         'mount_dir': os.path.join(base_path, mount_name),
         # every mount will have its own ca mode assets due to lack of multi-threading support in openssl
         'database_dir': os.path.join(base_path, mount_name, 'database'),
         'certs_dir': os.path.join(base_path, mount_name, 'certs'),
         'index': os.path.join(base_path, mount_name, 'database/index.txt'),
-        'index_attr': os.path.join(base_path, mount_name, 'database/index.txt.attr'),
+        'index_attr': os.path.join(
+            base_path, mount_name, 'database/index.txt.attr'
+        ),
         'serial': os.path.join(base_path, mount_name, 'database/serial'),
-        'rand': os.path.join(base_path, mount_name, 'database/.rand')
+        'rand': os.path.join(base_path, mount_name, 'database/.rand'),
     }
-
-    return tls_dict
 
 
 def get_public_key_sha1(public_key):
@@ -1830,8 +1912,11 @@ def get_public_key_sha1(public_key):
     #     6:d=2  hl=2 l=   9 prim: OBJECT            :rsaEncryption
     #    17:d=2  hl=2 l=   0 prim: NULL
     #    19:d=1  hl=4 l= 399 prim: BIT STRING
-    cmd = 'openssl asn1parse -inform PEM -in %s' % public_key
-    output, err = subprocess_call(cmd, 'Unable to ASN1 parse public key file, %s, correctly' % public_key)
+    cmd = f'openssl asn1parse -inform PEM -in {public_key}'
+    output, err = subprocess_call(
+        cmd, f'Unable to ASN1 parse public key file, {public_key}, correctly'
+    )
+
 
     key_line = ''
     for line in output.splitlines():
@@ -1839,7 +1924,7 @@ def get_public_key_sha1(public_key):
             key_line = line.decode('utf-8')
 
     if not key_line:
-        err_msg = 'Public key file, %s, is incorrectly formatted' % public_key
+        err_msg = f'Public key file, {public_key}, is incorrectly formatted'
         fatal_error(err_msg, err_msg)
 
     key_line = key_line.replace(' ', '')
@@ -1882,7 +1967,7 @@ def create_canonical_request(public_key_hash, date, access_key, region, fs_id, s
     Create a Canonical Request - https://docs.aws.amazon.com/general/latest/gr/sigv4-create-canonical-request.html
     """
     formatted_datetime = date.strftime(SIGV4_DATETIME_FORMAT)
-    credential = quote_plus(access_key + '/' + get_credential_scope(date, region))
+    credential = quote_plus(f'{access_key}/{get_credential_scope(date, region)}')
 
     request = HTTP_REQUEST_METHOD + '\n'
     request += CANONICAL_URI + '\n'
@@ -1913,7 +1998,9 @@ def create_canonical_query_string(public_key_hash, credential, formatted_datetim
         canonical_query_params['X-Amz-Security-Token'] = quote_plus(session_token)
 
     # Cannot use urllib.urlencode because it replaces the %s's
-    return '&'.join(['%s=%s' % (k, v) for k, v in sorted(canonical_query_params.items())])
+    return '&'.join(
+        [f'{k}={v}' for k, v in sorted(canonical_query_params.items())]
+    )
 
 
 def create_string_to_sign(canonical_request, date, region):
@@ -1938,7 +2025,11 @@ def calculate_signature(string_to_sign, date, secret_access_key, region):
     def _sign(key, msg):
         return hmac.new(key, msg.encode('utf-8'), hashlib.sha256)
 
-    key_date = _sign(('AWS4' + secret_access_key).encode('utf-8'), date.strftime(DATE_ONLY_FORMAT)).digest()
+    key_date = _sign(
+        f'AWS4{secret_access_key}'.encode('utf-8'),
+        date.strftime(DATE_ONLY_FORMAT),
+    ).digest()
+
     add_region = _sign(key_date, region).digest()
     add_service = _sign(add_region, SERVICE).digest()
     signing_key = _sign(add_service, 'aws4_request').digest()
@@ -1980,9 +2071,7 @@ def match_device(config, device, options):
         )
 
     for hostname in hostnames:
-        efs_fqdn_match = EFS_FQDN_RE.match(hostname)
-
-        if efs_fqdn_match:
+        if efs_fqdn_match := EFS_FQDN_RE.match(hostname):
             az = efs_fqdn_match.group('az')
             fs_id = efs_fqdn_match.group('fs_id')
 
@@ -1997,11 +2086,10 @@ def match_device(config, device, options):
             # check that the DNS name of the mount target matches exactly the DNS name the CNAME resolves to
             if hostname == expected_dns_name:
                 return fs_id, path, az
-    else:
-        create_default_cloudwatchlog_agent_if_not_exist(config, options)
-        fatal_error('The specified CNAME "%s" did not resolve to a valid DNS name for an EFS mount target. '
-                    'Please refer to the EFS documentation for mounting with DNS names for examples: %s'
-                    % (remote, 'https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-dns-name.html'))
+    create_default_cloudwatchlog_agent_if_not_exist(config, options)
+    fatal_error('The specified CNAME "%s" did not resolve to a valid DNS name for an EFS mount target. '
+                'Please refer to the EFS documentation for mounting with DNS names for examples: %s'
+                % (remote, 'https://docs.aws.amazon.com/efs/latest/ug/mounting-fs-mount-cmd-dns-name.html'))
 
 
 def add_field_in_options(options, field_key, field_value):
@@ -2032,7 +2120,7 @@ def is_nfs_mount(mountpoint):
 def mount_tls(config, init_system, dns_name, path, fs_id, mountpoint, options, fallback_ip_address=None):
     if os.path.ismount(mountpoint) and is_nfs_mount(mountpoint):
         sys.stdout.write("%s is already mounted, please run 'mount' command to verify\n" % mountpoint)
-        logging.warning("%s is already mounted, mount aborted" % mountpoint)
+        logging.warning(f"{mountpoint} is already mounted, mount aborted")
         return
 
     with bootstrap_tls(config, init_system, dns_name, fs_id, mountpoint, options,
@@ -2081,7 +2169,7 @@ def check_options_validity(options):
             try:
                 int(options['tlsport'])
             except ValueError:
-                fatal_error('tlsport option [%s] is not an integer' % options['tlsport'])
+                fatal_error(f"tlsport option [{options['tlsport']}] is not an integer")
 
         if 'ocsp' in options and 'noocsp' in options:
             fatal_error('The "ocsp" and "noocsp" options are mutually exclusive')
@@ -2093,7 +2181,7 @@ def check_options_validity(options):
         if 'tls' not in options:
             fatal_error('The "tls" option is required when mounting via "accesspoint"')
         if not AP_ID_RE.match(options['accesspoint']):
-            fatal_error('Access Point ID %s is malformed' % options['accesspoint'])
+            fatal_error(f"Access Point ID {options['accesspoint']} is malformed")
 
     if 'iam' in options and 'tls' not in options:
         fatal_error('The "tls" option is required when mounting via "iam"')
@@ -2134,14 +2222,15 @@ def bootstrap_cloudwatch_logging(config, options, fs_id=None):
 
     stream_creation_completed = create_cloudwatch_log_stream(cloudwatchlog_client, log_group_name, log_stream_name)
 
-    if not stream_creation_completed:
-        return None
-
-    return {
-        'client': cloudwatchlog_client,
-        'log_group_name': log_group_name,
-        'log_stream_name': log_stream_name
-    }
+    return (
+        {
+            'client': cloudwatchlog_client,
+            'log_group_name': log_group_name,
+            'log_stream_name': log_stream_name,
+        }
+        if stream_creation_completed
+        else None
+    )
 
 
 def create_default_cloudwatchlog_agent_if_not_exist(config, options):
@@ -2166,8 +2255,10 @@ def get_botocore_client(config, service, options):
         try:
             return session.create_client(service, region_name=region)
         except ProfileNotFound as e:
-            fatal_error('%s, please add the [profile %s] section in the aws config file following %s and %s.'
-                        % (e, profile, NAMED_PROFILE_HELP_URL, CONFIG_FILE_SETTINGS_HELP_URL))
+            fatal_error(
+                f'{e}, please add the [profile {profile}] section in the aws config file following {NAMED_PROFILE_HELP_URL} and {CONFIG_FILE_SETTINGS_HELP_URL}.'
+            )
+
 
     return session.create_client(service, region_name=region)
 
@@ -2193,15 +2284,13 @@ def get_cloudwatchlog_config(config, fs_id=None):
 def get_cloudwatch_log_stream_name(config, fs_id=None):
     instance_id = get_instance_identity_info_from_instance_metadata(config, 'instanceId')
     if instance_id and fs_id:
-        log_stream_name = '%s - %s - mount.log' % (fs_id, instance_id)
+        return f'{fs_id} - {instance_id} - mount.log'
     elif instance_id:
-        log_stream_name = '%s - mount.log' % (instance_id)
+        return f'{instance_id} - mount.log'
     elif fs_id:
-        log_stream_name = '%s - mount.log' % (fs_id)
+        return f'{fs_id} - mount.log'
     else:
-        log_stream_name = 'default - mount.log'
-
-    return log_stream_name
+        return 'default - mount.log'
 
 
 def check_if_platform_is_mac():
@@ -2225,7 +2314,7 @@ def cloudwatch_create_log_group_helper(cloudwatchlog_client, log_group_name):
     cloudwatchlog_client.create_log_group(
         logGroupName=log_group_name
     )
-    logging.info('Created cloudwatch log group %s' % log_group_name)
+    logging.info(f'Created cloudwatch log group {log_group_name}')
 
 
 def create_cloudwatch_log_group(cloudwatchlog_client, log_group_name):
@@ -2235,28 +2324,37 @@ def create_cloudwatch_log_group(cloudwatchlog_client, log_group_name):
         exception = e.response['Error']['Code']
 
         if exception == 'ResourceAlreadyExistsException':
-            logging.debug('Log group %s already exist, %s' % (log_group_name, e.response))
+            logging.debug(f'Log group {log_group_name} already exist, {e.response}')
             return True
         elif exception == 'LimitExceededException':
-            logging.error('Reached the maximum number of log groups that can be created, %s' % e.response)
+            logging.error(
+                f'Reached the maximum number of log groups that can be created, {e.response}'
+            )
+
             return False
         elif exception == 'OperationAbortedException':
-            logging.debug('Multiple requests to update the same log group %s were in conflict, %s' % (log_group_name, e.response))
+            logging.debug(
+                f'Multiple requests to update the same log group {log_group_name} were in conflict, {e.response}'
+            )
+
             return False
         elif exception == 'InvalidParameterException':
-            logging.error('Log group name %s is specified incorrectly, %s' % (log_group_name, e.response))
+            logging.error(
+                f'Log group name {log_group_name} is specified incorrectly, {e.response}'
+            )
+
             return False
         else:
             handle_general_botocore_exceptions(e)
             return False
     except NoCredentialsError as e:
-        logging.warning('Credentials are not properly configured, %s' % e)
+        logging.warning(f'Credentials are not properly configured, {e}')
         return False
     except EndpointConnectionError as e:
-        logging.warning('Could not connect to the endpoint, %s' % e)
+        logging.warning(f'Could not connect to the endpoint, {e}')
         return False
     except Exception as e:
-        logging.warning('Unknown error, %s.' % e)
+        logging.warning(f'Unknown error, {e}.')
         return False
     return True
 
@@ -2266,7 +2364,7 @@ def cloudwatch_put_retention_policy_helper(cloudwatchlog_client, log_group_name,
         logGroupName=log_group_name,
         retentionInDays=retention_days
     )
-    logging.debug('Set cloudwatch log group retention days to %s' % retention_days)
+    logging.debug(f'Set cloudwatch log group retention days to {retention_days}')
 
 
 def put_cloudwatch_log_retention_policy(cloudwatchlog_client, log_group_name, retention_days):

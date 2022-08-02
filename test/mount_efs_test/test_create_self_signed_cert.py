@@ -140,7 +140,11 @@ def test_certificate_with_iam_with_ap_id(mocker, tmpdir):
 
 
 def _test_recreate_certificate_with_valid_client_source_config(mocker, tmpdir, client_source):
-    mocker.patch('mount_efs.check_if_platform_is_mac', return_value=False if client_source != 'macos' else True)
+    mocker.patch(
+        'mount_efs.check_if_platform_is_mac',
+        return_value=client_source == 'macos',
+    )
+
     config = _get_mock_config(client_info={'source': client_source}) if client_source else _get_config()
     client_info = mount_efs.get_client_info(config)
     pk_path = _get_mock_private_key_path(mocker, tmpdir)

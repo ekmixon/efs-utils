@@ -23,11 +23,11 @@ DEFAULT_CLOUDWATCH_DISABLED = 'false'
 DEFAULT_RETENTION_DAYS = 14
 FS_ID = 'fs-deadbeef'
 INSTANCE = 'i-12345678'
-DEFAULT_CLOUDWATCH_LOG_STREAM = '%s - %s - mount.log' % (FS_ID, INSTANCE)
+DEFAULT_CLOUDWATCH_LOG_STREAM = f'{FS_ID} - {INSTANCE} - mount.log'
 MOCK_AGENT = {
     'client': 'fake-agent',
     'log_group_name': DEFAULT_CLOUDWATCH_LOG_GROUP,
-    'log_stream_name': '%s - %s - mount.log' % (FS_ID, INSTANCE)
+    'log_stream_name': f'{FS_ID} - {INSTANCE} - mount.log',
 }
 
 def _get_mock_config(enabled, log_group_name, retention_in_days):
@@ -41,7 +41,7 @@ def _get_mock_config(enabled, log_group_name, retention_in_days):
 
     def config_getboolean_side_effect(section, field):
         if section == mount_efs.CLOUDWATCH_LOG_SECTION and field == 'enabled':
-            return True if enabled == 'true' else False
+            return enabled == 'true'
         else:
             raise ValueError('Unexpected arguments')
 
@@ -63,7 +63,7 @@ def test_get_cloudwatchlog_config_without_fsid_with_instance_id(mocker):
     cloudwatchlog_agent = mount_efs.get_cloudwatchlog_config(config)
     assert cloudwatchlog_agent.get('log_group_name') == DEFAULT_CLOUDWATCH_LOG_GROUP
     assert cloudwatchlog_agent.get('retention_days') == DEFAULT_RETENTION_DAYS
-    assert cloudwatchlog_agent.get('log_stream_name') == '%s - mount.log' % INSTANCE
+    assert cloudwatchlog_agent.get('log_stream_name') == f'{INSTANCE} - mount.log'
 
 
 def test_get_cloudwatchlog_config_with_fsid_with_instance_id(mocker):
@@ -75,7 +75,10 @@ def test_get_cloudwatchlog_config_with_fsid_with_instance_id(mocker):
     cloudwatchlog_agent = mount_efs.get_cloudwatchlog_config(config, FS_ID)
     assert cloudwatchlog_agent.get('log_group_name') == DEFAULT_CLOUDWATCH_LOG_GROUP
     assert cloudwatchlog_agent.get('retention_days') == DEFAULT_RETENTION_DAYS
-    assert cloudwatchlog_agent.get('log_stream_name') == '%s - %s - mount.log' % (FS_ID, INSTANCE)
+    assert (
+        cloudwatchlog_agent.get('log_stream_name')
+        == f'{FS_ID} - {INSTANCE} - mount.log'
+    )
 
 
 def test_get_cloudwatchlog_config_with_fsid_without_instance_id(mocker):
@@ -87,7 +90,7 @@ def test_get_cloudwatchlog_config_with_fsid_without_instance_id(mocker):
     cloudwatchlog_agent = mount_efs.get_cloudwatchlog_config(config, FS_ID)
     assert cloudwatchlog_agent.get('log_group_name') == DEFAULT_CLOUDWATCH_LOG_GROUP
     assert cloudwatchlog_agent.get('retention_days') == DEFAULT_RETENTION_DAYS
-    assert cloudwatchlog_agent.get('log_stream_name') == '%s - mount.log' % (FS_ID)
+    assert cloudwatchlog_agent.get('log_stream_name') == f'{FS_ID} - mount.log'
 
 
 def test_get_cloudwatchlog_config_without_fsid_without_instance_id(mocker):
@@ -112,7 +115,7 @@ def test_botocore_not_called_when_feature_not_enabled(mocker):
     get_botocore_client_mock = mocker.patch('mount_efs.get_botocore_client')
     cloudwatchlog_agent = mount_efs.bootstrap_cloudwatch_logging(config, {}, FS_ID)
     utils.assert_not_called(get_botocore_client_mock)
-    assert cloudwatchlog_agent == None
+    assert cloudwatchlog_agent is None
 
 
 # When config set enabled = true, call the bootstrap_cloudwatch_logging, the get_botocore_client is called
@@ -122,7 +125,7 @@ def test_cloudwatchlog_agent_none_when_botocore_agent_is_none(mocker):
     cloudwatchlog_agent = mount_efs.bootstrap_cloudwatch_logging(config, {}, FS_ID)
     utils.assert_called_once(get_botocore_client_mock)
 
-    assert cloudwatchlog_agent == None
+    assert cloudwatchlog_agent is None
 
 
 """
@@ -159,7 +162,7 @@ def test_bootstrap_cloudwatch_log_create_log_group_failed(mocker):
     utils.assert_not_called(put_retention_policy_mock)
     utils.assert_not_called(create_log_stream_mock)
 
-    assert cloudwatchlog_agent == None
+    assert cloudwatchlog_agent is None
 
 
 def test_bootstrap_cloudwatch_log_put_retention_days_failed(mocker):
@@ -176,7 +179,7 @@ def test_bootstrap_cloudwatch_log_put_retention_days_failed(mocker):
     utils.assert_called_once(put_retention_policy_mock)
     utils.assert_not_called(create_log_stream_mock)
 
-    assert cloudwatchlog_agent == None
+    assert cloudwatchlog_agent is None
 
 
 def test_bootstrap_cloudwatch_log_create_log_stream_failed(mocker):
@@ -193,7 +196,7 @@ def test_bootstrap_cloudwatch_log_create_log_stream_failed(mocker):
     utils.assert_called_once(put_retention_policy_mock)
     utils.assert_called_once(create_log_stream_mock)
 
-    assert cloudwatchlog_agent == None
+    assert cloudwatchlog_agent is None
 
 
 """
@@ -203,7 +206,7 @@ def test_botocore_none_if_botocore_not_present(mocker):
     config = _get_mock_config(DEFAULT_CLOUDWATCH_ENABLED, DEFAULT_CLOUDWATCH_LOG_GROUP, DEFAULT_RETENTION_DAYS)
     mount_efs.BOTOCORE_PRESENT = False
     client = mount_efs.get_botocore_client(config, 'logs', {})
-    assert client == None
+    assert client is None
 
 
 def _test_botocore_client_established(mocker, iam_name):
@@ -458,7 +461,7 @@ def _test_get_log_stream_next_token_client_error(mocker, exception, desired_resu
 def test_get_log_stream_next_token_no_credentials_error(mocker):
     mocker.patch('mount_efs.cloudwatch_describe_log_streams_helper', side_effect=[NoCredentialsError()])
     token = mount_efs.get_log_stream_next_token(MOCK_AGENT)
-    assert token == None
+    assert token is None
 
 
 def test_get_log_stream_next_token_resource_not_found(mocker):

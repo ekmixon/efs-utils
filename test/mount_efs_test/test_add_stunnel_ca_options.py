@@ -103,10 +103,10 @@ def test_stunnel_cafile_configured_in_mount_region_section(mocker):
 
     config = _get_config()
     config.set(mount_efs.CONFIG_SECTION, 'stunnel_cafile', CAFILE)
-    config_section = '%s.%s' % (mount_efs.CONFIG_SECTION, ISOLATED_REGION)
+    config_section = f'{mount_efs.CONFIG_SECTION}.{ISOLATED_REGION}'
     config.add_section(config_section)
     config.set(config_section, 'stunnel_cafile', ISOLATED_REGION_STUNNEL_CAFILE)
-    
+
     mocker.patch('os.path.exists', return_value=True)
 
     mount_efs.add_stunnel_ca_options(efs_config, config, options, ISOLATED_REGION)

@@ -127,7 +127,7 @@ def test_mount_nfs_tls_netns(mocker):
     args = args[0]
 
     assert 'nsenter' == args[NETNS_NSENTER_ARG_IDX]
-    assert '--net=' + NETNS == args[NETNS_PATH_ARG_IDX]
+    assert f'--net={NETNS}' == args[NETNS_PATH_ARG_IDX]
     assert '/sbin/mount.nfs4' == args[NFS_BIN_ARG_IDX + NETNS_NFS_OFFSET]
     assert DNS_NAME not in args[NFS_MOUNT_PATH_IDX + NETNS_NFS_OFFSET]
     assert '127.0.0.1' in args[NFS_MOUNT_PATH_IDX + NETNS_NFS_OFFSET]

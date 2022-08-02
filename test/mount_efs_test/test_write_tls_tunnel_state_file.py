@@ -17,7 +17,7 @@ PID = 1234
 PORT = 54323
 COMMAND = ['stunnel', '/some/config/file']
 NETNS = '/proc/1/net/ns'
-NETNS_COMMAND = ['nsenter', '--net=' + NETNS] + COMMAND
+NETNS_COMMAND = ['nsenter', f'--net={NETNS}'] + COMMAND
 FILES = ['/tmp/foo', '/tmp/bar']
 DATETIME_FORMAT = '%y%m%d%H%M%SZ'
 

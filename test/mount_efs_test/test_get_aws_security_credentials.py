@@ -171,7 +171,7 @@ def test_get_aws_security_credentials_get_ecs_from_option_url(mocker):
     assert credentials['AccessKeyId'] == ACCESS_KEY_ID_VAL
     assert credentials['SecretAccessKey'] == SECRET_ACCESS_KEY_VAL
     assert credentials['Token'] == SESSION_TOKEN_VAL
-    assert credentials_source == 'ecs:' + AWSCREDSURI
+    assert credentials_source == f'ecs:{AWSCREDSURI}'
 
 
 def test_get_aws_security_credentials_get_instance_metadata_role_name_str(mocker):
@@ -208,11 +208,7 @@ def _test_get_aws_security_credentials_get_instance_metadata_role_name(mocker, i
         'Token': SESSION_TOKEN_VAL,
         'Expiration': '2019-10-25T21:17:24Z'
     })
-    if is_name_str:
-        role_name_data = b'FAKE_IAM_ROLE_NAME'
-    else:
-        role_name_data = 'FAKE_IAM_ROLE_NAME'
-
+    role_name_data = b'FAKE_IAM_ROLE_NAME' if is_name_str else 'FAKE_IAM_ROLE_NAME'
     side_effects = token_effects + [MockUrlLibResponse(data=role_name_data)] + token_effects + [MockUrlLibResponse(data=response)]
     mocker.patch('mount_efs.urlopen', side_effect=side_effects)
 
@@ -344,7 +340,10 @@ def test_credentials_file_helper_awsprofile_not_found(caplog, tmpdir):
     assert credentials['SecretAccessKey'] is None
     assert credentials['Token'] is None
 
-    assert 'No [default] section found in config file %s' % fake_file in [rec.message for rec in caplog.records][0]
+    assert (
+        f'No [default] section found in config file {fake_file}'
+        in [rec.message for rec in caplog.records][0]
+    )
 
 
 def test_credentials_file_helper_awsprofile_found_missing_key(caplog, tmpdir):
@@ -360,5 +359,7 @@ def test_credentials_file_helper_awsprofile_found_missing_key(caplog, tmpdir):
     assert credentials['SecretAccessKey'] is None
     assert credentials['Token'] is None
 
-    assert 'aws_access_key_id or aws_secret_access_key not found in %s under named profile [test_profile]' % fake_file \
-           in [rec.message for rec in caplog.records][0]
+    assert (
+        f'aws_access_key_id or aws_secret_access_key not found in {fake_file} under named profile [test_profile]'
+        in [rec.message for rec in caplog.records][0]
+    )
